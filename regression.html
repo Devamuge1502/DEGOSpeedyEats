@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Regression Analysis</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #e0f7fa, #fff9c4);
+            font-family: 'Poppins', sans-serif;
+            text-align: center;
+            padding: 30px;
+            color: #333;
+        }
+        h1 {
+            color: #00796b;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #5d4037;
+            margin-top: 30px;
+        }
+        .container {
+            background: #ffffffcc;
+            padding: 20px;
+            border-radius: 15px;
+            display: inline-block;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            max-width: 900px;
+        }
+        label, select, button, input {
+            margin: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+        }
+        button {
+            background-color: #00796b;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #004d40;
+        }
+        table {
+            width: 90%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background: #fafafa;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        th {
+            background: #80deea;
+        }
+        td {
+            background: #e0f7fa;
+        }
+        .checkbox-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 10px;
+        }
+        .checkbox-item {
+            background: #ffe082;
+            margin: 5px;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        #resultSection {
+            display: none;
+            margin-top: 30px;
+        }
+        #explanation {
+            margin-top: 20px;
+            background: #dcedc8;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Regression Analysis</h1>
+
+        <h2>Definition</h2>
+        <p>Regression analysis is a statistical method used to model the relationship between a dependent variable and one or more independent variables. It helps in predicting the value of the dependent variable based on the values of the independent variables.</p>
+
+        <h2>Uses</h2>
+        <p>Regression analysis is widely used in various fields such as finance, economics, biology, and social sciences to understand relationships between variables, make predictions, and inform decision-making.</p>
+
+        <h2>Upload Your Dataset</h2>
+        <h2>(Excel Only)</h2>
+        <input type="file" id="fileInput" accept=".xlsx">
+        
+        <h2>Select Variables for Regression</h2>
+        <div id="columnsCheckboxes" class="checkbox-container">
+            <!-- Checkboxes will appear here dynamically -->
+        </div>
+
+        <button onclick="calculateRegression()">Calculate Regression</button>
+
+        <div id="resultSection">
+            <h2>Regression Result</h2>
+            <div id="resultTable"></div>
+            <h3>Result Explanation</h3>
+            <div id="explanation"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        let data = [];
+        let headers = [];
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                data = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
+                if (data.length > 0) {
+                    headers = Object.keys(data[0]);
+                    populateCheckboxes(headers);
+                }
+            };
+            reader.readAsBinaryString(e.target.files[0]);
+        });
+
+        function populateCheckboxes(columns) {
+            const container = document.getElementById('columnsCheckboxes');
+            container.innerHTML = '';
+            columns.forEach(col => {
+                const div = document.createElement('div');
+                div.className = 'checkbox-item';
+                div.innerHTML = `
+                    <input type="checkbox" id="${col}" name="columns" value="${col}">
+                    <label for="${col}">${col}</label>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function calculateRegression() {
+            const selectedColumns = Array.from(document.querySelectorAll('input[name="columns"]:checked')).map(cb => cb.value);
+            if (selectedColumns.length < 2) {
+                alert("Please select at least two columns for regression analysis.");
+                return;
+            }
+
+            const dependentVar = selectedColumns.pop(); // Last selected variable as dependent
+            const independentVars = selectedColumns; // Remaining as independent variables
+
+            const regressionResults = performRegression(data, dependentVar, independentVars);
+            displayRegressionTable(regressionResults);
+            displayRegressionExplanation(regressionResults);
+            document.getElementById('resultSection').style.display = 'block';
+        }
+
+        function performRegression(data, dependentVar, independentVars) {
+            const x = independentVars.map(varName => data.map(row => row[varName])).map(arr => arr.filter(val => typeof val === 'number'));
+            const y = data.map(row => row[dependentVar]).filter(val => typeof val === 'number');
+
+            // Simple linear regression using least squares method
+            const coefficients = independentVars.map((varName, index) => {
+                const xValues = x[index];
+                const n = xValues.length;
+                const sumX = xValues.reduce((a, b) => a + b, 0);
+                const sumY = y.reduce((a, b) => a + b, 0);
+                const sumXY = xValues.reduce((acc, val, i) => acc + val * y[i], 0);
+                const sumX2 = xValues.reduce((acc, val) => acc + val * val, 0);
+
+                const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+                const intercept = (sumY - slope * sumX) / n;
+
+                return { variable: varName, slope, intercept };
+            });
+
+            return coefficients;
+        }
+
+        function displayRegressionTable(regressionResults) {
+            const resultDiv = document.getElementById('resultTable');
+            resultDiv.innerHTML = '';
+
+            const table = document.createElement('table');
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            headerRow.appendChild(document.createElement('th')).innerText = 'Variable';
+            headerRow.appendChild(document.createElement('th')).innerText = 'Slope';
+            headerRow.appendChild(document.createElement('th')).innerText = 'Intercept';
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            regressionResults.forEach(result => {
+                const tr = document.createElement('tr');
+                const tdVar = document.createElement('td');
+                const tdSlope = document.createElement('td');
+                const tdIntercept = document.createElement('td');
+
+                tdVar.innerText = result.variable;
+                tdSlope.innerText = result.slope.toFixed(2);
+                tdIntercept.innerText = result.intercept.toFixed(2);
+
+                tr.appendChild(tdVar);
+                tr.appendChild(tdSlope);
+                tr.appendChild(tdIntercept);
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+
+            resultDiv.appendChild(table);
+        }
+
+        function displayRegressionExplanation(regressionResults) {
+            const explanationDiv = document.getElementById('explanation');
+            explanationDiv.innerHTML = '';
+
+            regressionResults.forEach(result => {
+                const p = document.createElement('p');
+                p.innerText = `For the variable ${result.variable}, the regression equation is: y = ${result.intercept.toFixed(2)} + ${result.slope.toFixed(2)} * x.`;
+                explanationDiv.appendChild(p);
+            });
+        }
+    </script>
+
+</body>
+</html>

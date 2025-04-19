@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Food Order Tracking Map</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(to right, #ff9a9e, #fad0c4);
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            margin: 0;
+            position: relative;
+        }
+        .container {
+            display: flex;
+            width: 80%;
+            margin: 20px auto;
+            justify-content: center;
+            align-items: center;
+            flex-direction: row;
+            position: relative;
+        }
+        #mapCanvas {
+            border: 2px solid black;
+            background: #d0e0f0;
+            position: relative;
+        }
+        .info-section {
+            margin: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+            width: 200px;
+            display: block; /* Always show the info section */
+            min-width: 200px;
+            max-width: 300px;
+            overflow: visible;
+            text-align: center;
+        }
+        .random-dot {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: blue;
+            animation: wave 1.5s infinite ease-in-out alternate;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+        }
+        .wave-effect {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(0, 0, 255, 0.3);
+            animation: pulse 1.5s infinite ease-in-out;
+            pointer-events: none;
+        }
+        @keyframes wave {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        .search-container {
+            margin: 20px;
+            display: none; /* Initially hidden */
+            align-items: center;
+        }
+        #searchInput {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            width: 200px;
+        }
+        #searchButton {
+            padding: 10px;
+            margin-left: 10px;
+            border-radius: 5px;
+            border: none;
+            background-color: #ff6f61;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h2>DEGO SPEEDYEATS - ONLINE FOOD ORDERING SYSTEM</h2>
+    <h2>READY WAITING ORDERS</h2>
+    
+    <div class="search-container" id="searchContainer">
+        <input type="text" id="searchInput" placeholder="Enter delivery location">
+        <button id="searchButton">Get Details</button>
+    </div>
+
+    <div class="container">
+        <canvas id="mapCanvas" width="800" height="500"></canvas>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const locations = [
+            { name: 'DEGO SPEEDYEATS', x: 100, y: 250, color: 'green' },
+            { name: '1', x: 200, y: 100, color: 'red' },
+            { name: '2', x: 600, y: 150, color: 'red' },
+            { name: '3', x: 450, y: 400, color: 'red' },
+            { name: '4', x: 500, y: 200, color: 'red' },
+            { name: '5', x: 350, y: 350, color: 'red' }
+        ];
+        
+        let selectedDot = null; // To store the selected dot
+
+        function drawMap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#d0e0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            locations.forEach(loc => {
+                ctx.fillStyle = loc.color;
+                ctx.beginPath();
+                ctx.arc(loc.x, loc.y, 10, 0, Math.PI * 2, true);
+                ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.font = '16px Arial';
+                ctx.fillText(loc.name, loc.x + 12, loc.y - 12);
+            });
+        }
+
+        function calculateDistance(x1, y1, x2, y2) {
+            return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)) * 10; // Convert to meters
+        }
+
+        function generateRandomDots() {
+            const foodItems = ['Pizza', 'Burger', 'Pasta', 'Sandwich', 'Salad'];
+            const dotNames = ['A', 'B', 'C'];
+            const numDots = dotNames.length;
+            for (let i = 0; i < numDots; i++) {
+                const dot = document.createElement('div');
+                const wave = document.createElement('div');
+                dot.classList.add('random-dot');
+                wave.classList.add('wave-effect');
+                
+                const x = Math.random() * (canvas.width - 20) + canvas.offsetLeft;
+                const y = Math.random() * (canvas.height - 20) + canvas.offsetTop;
+                dot.style.left = `${x}px`;
+                dot.style.top = `${y}px`;
+                wave.style.left = `${x - 10}px`;
+                wave.style.top = `${y - 10}px`;
+                dot.textContent = dotNames[i];
+                
+                document.querySelector('.container').appendChild(wave);
+                document.querySelector('.container').appendChild(dot);
+                
+                const food = foodItems[Math.floor(Math.random() * foodItems.length)];
+                const price = Math.floor(Math.random() * 50) + 10;
+                const discountedPrice = (price * 0.8).toFixed(2);
+                const locationIndex = Math.floor(Math.random() * locations.length);
+                const locationName = locations[locationIndex].name;
+                const dotX = locations[locationIndex].x;
+                const dotY = locations[locationIndex].y;
+
+                dot.addEventListener('click', () => {
+                    selectedDot = { dotX, dotY, food, price, discountedPrice }; // Store selected dot details
+                    const message = `You have chosen the waiting order: ${dot.textContent}\nFood Item: ${food}\nTotal Amount: ₹${price}\nDiscounted Amount: ₹${discountedPrice}\nFrom: DEGO SPEEDYEATS\n\nWould you like to place this order?`;
+                    if (confirm(message)) {
+                        // Show the search container after confirming the order
+                        document.getElementById('searchContainer').style.display = 'flex';
+                    } else {
+                        alert('Order canceled.');
+                    }
+                });
+            }
+        }
+
+        document.getElementById('searchButton').addEventListener('click', () => {
+            const deliveryLocation = document.getElementById('searchInput').value;
+            if (deliveryLocation && selectedDot) {
+                // Generate a random distance between 10m and 500m
+                const distanceToDelivery = Math.floor(Math.random() * (500 - 10 + 1)) + 10; // Random distance between 10 and 500 meters
+                // Generate a random time between 10min and 40min
+                const timeToDelivery = Math.floor(Math.random() * (40 - 10 + 1)) + 10; // Random time between 10 and 40 minutes
+
+                const confirmMessage = `Delivery Location: ${deliveryLocation}\nDistance from waiting order to delivery location: ${distanceToDelivery} m\nEstimated time to delivery location: ${timeToDelivery} min\n\nWould you like to place this order?`;
+                if (confirm(confirmMessage)) {
+                    alert('Order placed successfully!');
+                } else {
+                    alert('Order canceled.');
+                }
+            } else {
+                alert('Please enter a delivery location and select a waiting order.');
+            }
+        });
+
+        window.onload = function() {
+            drawMap();
+            generateRandomDots();
+        };
+    </script>
+</body>
+</html>

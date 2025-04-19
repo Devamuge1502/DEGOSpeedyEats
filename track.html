@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Food Order Tracking Map</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(to right, #ff9a9e, #fad0c4);
+            font-family: Arial, sans-serif;
+            height: 100vh; /* Set the body height to the full viewport height */
+            margin: 0; /* Remove default margin */
+        }
+        .container {
+            display: flex;
+            width: 80%; /* Set a width for the container */
+            margin: 20px auto; /* Center the container */
+            justify-content: center; /* Center the content horizontally */
+            align-items: center; /* Center the content vertically */
+            flex-direction: row; /* Arrange elements horizontally */
+        }
+        #mapCanvas {
+            border: 2px solid black;
+            background: #d0e0f0;
+        }
+        /* Modal styles */
+        #orderModal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgb(0,0,0); /* Fallback color */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            padding-top: 60px;
+        }
+        /* Modal Content */
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 300px; /* Could be more or less, depending on screen size */
+            text-align: center;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        /* Compact input and button styles */
+        .input-container {
+            margin: 20px;
+            display: inline-flex; /* Align input and button horizontally */
+            align-items: center; /* Center vertically */
+        }
+        input[type="text"] {
+            padding: 5px;
+            width: 150px; /* Compact width */
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-right: 5px; /* Space between input and button */
+        }
+        button {
+            background-color: #ff6f61; /* Button color */
+            color: white; /* Text color */
+            border: none; /* No border */
+            border-radius: 5px; /* Rounded corners */
+            padding: 5px 10px; /* Compact padding */
+            font-size: 14px; /* Smaller font size */
+            cursor: pointer; /* Pointer cursor on hover */
+            transition: background-color 0.3s, transform 0.2s; /* Transition effects */
+        }
+        button:hover {
+            background-color: #ff4f3d; /* Darker shade on hover */
+            transform: scale(1.05); /* Slightly enlarge on hover */
+        }
+        button:active {
+            transform: scale(0.95); /* Slightly shrink on click */
+        }
+        /* Display area for tracking information */
+        .info-section {
+            margin: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+            width: 200px; /* Fixed width for the info sections */
+            display: none; /* Initially hidden */
+            min-width: 200px; /* Minimum width to prevent folding */
+            max-width: 300px; /* Maximum width to keep it manageable */
+            overflow: visible; /* Allow overflow */
+        }
+    </style>
+</head>
+<body>
+    <h2>DEGO SPEEDYEATS - ONLINE FOOD ORDERING SYSTEM</h2>
+    <h2>LIVE FOOD ORDER TRACKING MAP</h2>
+    
+    <!-- Compact space to enter Order ID -->
+    <div class="input-container">
+        <input type="text" id="enteredOrderId" placeholder="Order ID" />
+        <button onclick="trackOrder()">Track</button>
+    </div>
+
+    <div class="container">
+        <canvas id="mapCanvas" width="800" height="500"></canvas>
+
+        <!-- Display area for order information on the left -->
+        <div class="info-section" id="orderInfo">
+            <p id="destination"></p>
+            <p id="distance"></p>
+            <p id="time"></p>
+        </div>
+
+        <!-- Display area for pointer movement information on the right -->
+        <div class="info-section" id="pointerInfo">
+            <p id="pointerDistance"></p>
+            <p id="pointerTime"></p>
+        </div>
+    </div>
+
+    <!-- The Modal -->
+    <div id="orderModal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <p>Your Order ID: <span id="orderId"></span></p>
+            <button onclick="copyOrderId()">Copy Order ID</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const locations = [
+            { name: 'DEGO SPEEDYEATS', x: 100, y: 250, color: 'green' }, // Source point
+            { name: '1', x: 200, y: 100, color: 'red' },
+            { name: '2', x: 600, y: 150, color: 'red' },
+            { name: '3', x: 450, y: 400, color: 'red' },
+            { name: '4', x: 500, y: 200, color: 'red' },
+            { name: '5', x: 350, y: 350, color: 'red' }
+        ];
+        let orderId;
+        let animationFrameId;
+        let pointerPosition = { x: 100, y: 250 }; // Start at DEGO SPEEDYEATS
+        let totalDistance; // Total distance to destination
+        let totalTime; // Total time to destination
+
+        function generateOrderId() {
+            orderId = 'ORD' + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('orderId').innerText = orderId;
+            document.getElementById('orderModal').style.display = "block"; // Show the modal
+        }
+
+        function copyOrderId() {
+            navigator.clipboard.writeText(orderId);
+            alert('Order ID copied to clipboard');
+            closeModal(); // Close the modal after copying
+        }
+
+        function closeModal() {
+            document.getElementById('orderModal').style.display = "none"; // Hide the modal
+        }
+
+        function trackOrder() {
+            const enteredId = document.getElementById('enteredOrderId').value;
+            if (enteredId === orderId) {
+                const randomIndex = Math.floor(Math.random() * 5) + 1; // Random index from 1 to 5
+                const destination = locations[randomIndex];
+                totalDistance = Math.floor(Math.random() * (1000 - 200 + 1)) + 200; // Random distance between 200 and 1000 meters
+                totalTime = Math.floor(Math.random() * (40 - 20 + 1)) + 20; // Random time between 20 and 40 minutes
+                
+                document.getElementById('destination').innerText = `Destination: ${destination.name}`;
+                document.getElementById('distance').innerText = `Distance: ${totalDistance} m`;
+                document.getElementById('time').innerText = `Estimated Time: ${totalTime} min`;
+
+                // Reset pointer movement information
+                document.getElementById('pointerDistance').innerText = `Distance Remaining: ${totalDistance} m`;
+                document.getElementById('pointerTime').innerText = `Time Remaining: ${totalTime} min`;
+
+                // Show the order and pointer information sections
+                document.getElementById('orderInfo').style.display = 'block';
+                document.getElementById('pointerInfo').style.display = 'block';
+
+                animatePointer(destination); // Start the animation
+            } else {
+                alert('Order ID not found. Please check and try again.');
+                document.getElementById('trackingInfo').innerHTML = ''; // Clear previous info
+            }
+        }
+
+        function animatePointer(destination) {
+            const destinationX = destination.x;
+            const destinationY = destination.y;
+            const step = 1; // Speed of the pointer
+
+            function movePointer() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawMap();
+                
+                // Draw the pointer
+                ctx.fillStyle = 'blue';
+                ctx.beginPath();
+                ctx.arc(pointerPosition.x, pointerPosition.y, 10, 0, Math.PI * 2, true);
+                ctx.fill();
+
+                // Calculate the distance to the destination
+                const dx = destinationX - pointerPosition.x;
+                const dy = destinationY - pointerPosition.y;
+                const distanceToDestination = Math.sqrt(dx * dx + dy * dy);
+
+                // Move the pointer towards the destination
+                if (pointerPosition.x < destinationX) {
+                    pointerPosition.x += step;
+                } else if (pointerPosition.x > destinationX) {
+                    pointerPosition.x -= step;
+                }
+
+                if (pointerPosition.y < destinationY) {
+                    pointerPosition.y += step;
+                } else if (pointerPosition.y > destinationY) {
+                    pointerPosition.y -= step;
+                }
+
+                // Calculate the total distance and time based on the distance to the destination
+                const totalDistanceToDestination = Math.sqrt((destinationX - 100) ** 2 + (destinationY - 250) ** 2);
+                const distanceRatio = distanceToDestination / totalDistanceToDestination;
+
+                // Reduce distance and time based on the pointer's progress
+                const distanceReduction = totalDistance / (totalDistanceToDestination / step);
+                const timeReduction = totalTime / (totalDistanceToDestination / step);
+
+                totalDistance = Math.max(0, totalDistance - distanceReduction);
+                totalTime = Math.max(0, totalTime - timeReduction);
+
+                // Update displayed pointer movement information
+                document.getElementById('pointerDistance').innerText = `Distance Remaining: ${totalDistance.toFixed(0)} m`;
+                document.getElementById('pointerTime').innerText = `Time Remaining: ${totalTime.toFixed(0)} min`;
+
+                // Continue the animation until the pointer reaches the destination
+                if (pointerPosition.x !== destinationX || pointerPosition.y !== destinationY) {
+                    animationFrameId = requestAnimationFrame(movePointer);
+                } else {
+                    // Ensure distance and time are set to zero upon arrival
+                    totalDistance = 0;
+                    totalTime = 0;
+                    document.getElementById('pointerDistance').innerText = `Distance Remaining: ${totalDistance} m`;
+                    document.getElementById('pointerTime').innerText = `Time Remaining: ${totalTime} min`;
+                    cancelAnimationFrame(animationFrameId); // Stop the animation
+                }
+            }
+
+            movePointer(); // Start moving the pointer
+        }
+
+        function drawMap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#d0e0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            locations.forEach(loc => {
+                ctx.fillStyle = loc.color; // Use the specified color for each location
+                ctx.beginPath();
+                ctx.arc(loc.x, loc.y, 10, 0, Math.PI * 2, true);
+                ctx.fill();
+                
+                // Set font size and style for the point names
+                ctx.fillStyle = 'black';
+                ctx.font = '16px Arial'; // Change the font size here
+                ctx.fillText(loc.name, loc.x + 12, loc.y - 12);
+            });
+        }
+        
+        window.onload = function() {
+            generateOrderId(); // Generate Order ID on page load
+            drawMap();
+        };
+    </script>
+</body>
+</html>

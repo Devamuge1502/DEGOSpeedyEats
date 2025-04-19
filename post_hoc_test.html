@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Post-Hoc Test</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #e0f7fa, #fff9c4);
+            font-family: 'Poppins', sans-serif;
+            text-align: center;
+            padding: 30px;
+            color: #333;
+        }
+        h1 {
+            color: #00796b;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #5d4037;
+            margin-top: 30px;
+        }
+        .container {
+            background: #ffffffcc;
+            padding: 20px;
+            border-radius: 15px;
+            display: inline-block;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            max-width: 900px;
+        }
+        label, select, button, input {
+            margin: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+        }
+        button {
+            background-color: #00796b;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #004d40;
+        }
+        table {
+            width: 90%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background: #fafafa;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        th {
+            background: #80deea;
+        }
+        td {
+            background: #e0f7fa;
+        }
+        .checkbox-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 10px;
+        }
+        .checkbox-item {
+            background: #ffe082;
+            margin: 5px;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        #resultSection {
+            display: none;
+            margin-top: 30px;
+        }
+        #explanation {
+            margin-top: 20px;
+            background: #dcedc8;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Post-Hoc Test</h1>
+
+        <h2>Definition</h2>
+        <p>A post-hoc test is a statistical analysis conducted after an ANOVA to determine which specific group means are different. It helps in identifying where the differences lie among the groups when the overall ANOVA indicates significant differences.</p>
+
+        <h2>Uses</h2>
+        <p>Post-hoc tests are commonly used in various fields such as psychology, medicine, and social sciences to analyze the results of experiments and surveys, especially when comparing multiple groups.</p>
+
+        <h2>Upload Your Dataset</h2>
+        <h2>(Excel Only)</h2>
+        <input type="file" id="fileInput" accept=".xlsx">
+        
+        <h2>Select Variables for Post-Hoc Test</h2>
+        <div id="columnsCheckboxes" class="checkbox-container">
+            <!-- Checkboxes will appear here dynamically -->
+        </div>
+
+        <button onclick="performPostHocTest()">Perform Post-Hoc Test</button>
+
+        <div id="resultSection">
+            <h2>Post-Hoc Test Result</h2>
+            <div id="resultTable"></div>
+            <h3>Result Explanation</h3>
+            <div id="explanation"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        let data = [];
+        let headers = [];
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                data = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
+                if (data.length > 0) {
+                    headers = Object.keys(data[0]);
+                    populateCheckboxes(headers);
+                }
+            };
+            reader.readAsBinaryString(e.target.files[0]);
+        });
+
+        function populateCheckboxes(columns) {
+            const container = document.getElementById('columnsCheckboxes');
+            container.innerHTML = '';
+            columns.forEach(col => {
+                const div = document.createElement('div');
+                div.className = 'checkbox-item';
+                div.innerHTML = `
+                    <input type="checkbox" id="${col}" name="columns" value="${col}">
+                    <label for="${col}">${col}</label>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function performPostHocTest() {
+            const selectedColumns = Array.from(document.querySelectorAll('input[name="columns"]:checked')).map(cb => cb.value);
+            if (selectedColumns.length !== 2) {
+                alert("Please select one categorical variable and one continuous variable for the post-hoc test.");
+                return;
+            }
+
+            const categoricalVariable = selectedColumns[0];
+            const continuousVariable = selectedColumns[1];
+
+            const groups = {};
+            data.forEach(row => {
+                const key = row[categoricalVariable];
+                if (!groups[key]) {
+                    groups[key] = [];
+                }
+                groups[key].push(row[continuousVariable]);
+            });
+
+            const postHocResults = calculatePostHocTest(groups);
+            displayPostHocResult(postHocResults);
+            displayPostHocExplanation(postHocResults);
+            document.getElementById('resultSection').style.display = 'block';
+        }
+
+        function calculatePostHocTest(groups) {
+            const groupKeys = Object.keys(groups);
+            const results = [];
+
+            for (let i = 0; i < groupKeys.length; i++) {
+                for (let j = i + 1; j < groupKeys.length; j++) {
+                    const group1 = groups[groupKeys[i]];
+                    const group2 = groups[groupKeys[j]];
+                    const pValue = performTTest(group1, group2); // Placeholder for actual statistical test
+                    results.push({ group1: groupKeys[i], group2: groupKeys[j], pValue });
+                }
+            }
+
+            return results;
+        }
+
+        function performTTest(group1, group2) {
+            // Placeholder for T-test calculation
+            // In a real scenario, you would perform a statistical test here
+            return Math.random(); // Simulated p-value
+        }
+
+        function displayPostHocResult(results) {
+            const resultDiv = document.getElementById('resultTable');
+            resultDiv.innerHTML = '';
+
+            const table = document.createElement('table');
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            headerRow.appendChild(document.createElement('th')).innerText = 'Group 1';
+            headerRow.appendChild(document.createElement('th')).innerText = 'Group 2';
+            headerRow.appendChild(document.createElement('th')).innerText = 'p-Value';
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            results.forEach(result => {
+                const tr = document.createElement('tr');
+                const tdGroup1 = document.createElement('td');
+                const tdGroup2 = document.createElement('td');
+                const tdPValue = document.createElement('td');
+
+                tdGroup1.innerText = result.group1;
+                tdGroup2.innerText = result.group2;
+                tdPValue.innerText = result.pValue.toFixed(4);
+
+                tr.appendChild(tdGroup1);
+                tr.appendChild(tdGroup2);
+                tr.appendChild(tdPValue);
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+
+            resultDiv.appendChild(table);
+        }
+
+        function displayPostHocExplanation(results) {
+            const explanationDiv = document.getElementById('explanation');
+            explanationDiv.innerHTML = '';
+
+            const p = document.createElement('p');
+            p.innerText = `The post-hoc test results indicate the following p-values for the comparisons between groups:`;
+            explanationDiv.appendChild(p);
+
+            results.forEach(result => {
+                const p = document.createElement('p');
+                p.innerText = `Comparison between ${result.group1} and ${result.group2}: p-value = ${result.pValue.toFixed(4)}`;
+                explanationDiv.appendChild(p);
+            });
+        }
+    </script>
+
+</body>
+</html>

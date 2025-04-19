@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback & Rating</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #ff9966, #ff5e62);
+            text-align: center;
+            padding: 50px;
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-bottom: 30px; /* Added space below the feedback form */
+        }
+        .stars {
+            direction: rtl;
+            display: inline-flex;
+        }
+        .stars input {
+            display: none;
+        }
+        .stars label {
+            font-size: 30px;
+            color: #ccc;
+            cursor: pointer;
+        }
+        .stars input:checked ~ label,
+        .stars label:hover,
+        .stars label:hover ~ label {
+            color: gold;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin-top: 10px;
+            border-radius: 5px;
+            border: none;
+            padding: 10px;
+        }
+        button {
+            background: gold;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        .feedback-list {
+            margin-top: 40px; /* Added extra space between feedback form and collected feedback */
+            text-align: center;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            width: 50%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>DEGO SPEEDYEATS - ONLINE FOOD ORDERING SYSTEM</h2>
+        <h2>FEEDBACK & RATING</h2>
+        <div class="stars">
+            <input type="radio" name="rating" id="star5" value="5"><label for="star5">★</label>
+            <input type="radio" name="rating" id="star4" value="4"><label for="star4">★</label>
+            <input type="radio" name="rating" id="star3" value="3"><label for="star3">★</label>
+            <input type="radio" name="rating" id="star2" value="2"><label for="star2">★</label>
+            <input type="radio" name="rating" id="star1" value="1"><label for="star1">★</label>
+        </div>
+        <textarea id="feedback" placeholder="Enter your feedback..."></textarea>
+        <button onclick="submitFeedback()">Submit</button>
+    </div>
+
+    <div id="feedbackList" class="feedback-list"></div>
+    
+    <script>
+        function submitFeedback() {
+            const rating = document.querySelector('input[name="rating"]:checked');
+            const feedbackText = document.getElementById('feedback').value;
+
+            if (!rating || feedbackText.trim() === '') {
+                alert("Please provide both a rating and feedback.");
+                return;
+            }
+
+            const feedbackList = document.getElementById('feedbackList');
+            const feedbackItem = document.createElement('div');
+            feedbackItem.innerHTML = `<strong>⭐ ${rating.value} Stars</strong><br>${feedbackText}<hr>`;
+            feedbackList.appendChild(feedbackItem);
+
+            // Clear form
+            document.getElementById('feedback').value = "";
+            document.querySelectorAll('input[name="rating"]').forEach(el => el.checked = false);
+        }
+    </script>
+</body>
+</html>

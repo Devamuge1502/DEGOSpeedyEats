@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Akaike Information Criterion (AIC) Test</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #e0f7fa, #fff9c4);
+            font-family: 'Poppins', sans-serif;
+            text-align: center;
+            padding: 30px;
+            color: #333;
+        }
+        h1 {
+            color: #00796b;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #5d4037;
+            margin-top: 30px;
+        }
+        .container {
+            background: #ffffffcc;
+            padding: 20px;
+            border-radius: 15px;
+            display: inline-block;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            max-width: 900px;
+        }
+        label, select, button, input {
+            margin: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+        }
+        button {
+            background-color: #00796b;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #004d40;
+        }
+        table {
+            width: 90%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background: #fafafa;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        th {
+            background: #80deea;
+        }
+        td {
+            background: #e0f7fa;
+        }
+        .checkbox-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 10px;
+        }
+        .checkbox-item {
+            background: #ffe082;
+            margin: 5px;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        #resultSection {
+            display: none;
+            margin-top: 30px;
+        }
+        #explanation {
+            margin-top: 20px;
+            background: #dcedc8;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Akaike Information Criterion (AIC) Test</h1>
+
+        <h2>Definition</h2>
+        <p>The Akaike Information Criterion (AIC) is a measure used to compare different statistical models. It estimates the quality of each model relative to each of the other models. The model with the lowest AIC value is generally preferred.</p>
+
+        <h2>Uses</h2>
+        <p>AIC is widely used in model selection, particularly in regression analysis, time series analysis, and other statistical modeling contexts to identify the best-fitting model while penalizing for complexity.</p>
+
+        <h2>Upload Your Dataset</h2>
+        <h2>(Excel Only)</h2>
+        <input type="file" id="fileInput" accept=".xlsx">
+        
+        <h2>Select Variables for AIC Calculation</h2>
+        <div id="columnsCheckboxes" class="checkbox-container">
+            <!-- Checkboxes will appear here dynamically -->
+        </div>
+
+        <button onclick="calculateAIC()">Calculate AIC</button>
+
+        <div id="resultSection">
+            <h2>AIC Result</h2>
+            <div id="resultTable"></div>
+            <h3>Result Explanation</h3>
+            <div id="explanation"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        let data = [];
+        let headers = [];
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                data = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
+                if (data.length > 0) {
+                    headers = Object.keys(data[0]);
+                    populateCheckboxes(headers);
+                }
+            };
+            reader.readAsBinaryString(e.target.files[0]);
+        });
+
+        function populateCheckboxes(columns) {
+            const container = document.getElementById('columnsCheckboxes');
+            container.innerHTML = '';
+            columns.forEach(col => {
+                const div = document.createElement('div');
+                div.className = 'checkbox-item';
+                div.innerHTML = `
+                    <input type="checkbox" id="${col}" name="columns" value="${col}">
+                    <label for="${col}">${col}</label>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function calculateAIC() {
+            const selectedColumns = Array.from(document.querySelectorAll('input[name="columns"]:checked')).map(cb => cb.value);
+            if (selectedColumns.length < 2) {
+                alert("Please select at least two columns for AIC calculation.");
+                return;
+            }
+
+            const aicResults = selectedColumns.map(col => {
+                const model = fitModel(data, col);
+                return { variable: col, aic: calculateAICValue(model) };
+            });
+
+            displayAICResult(aicResults);
+            displayAICExplanation(aicResults);
+            document.getElementById('resultSection').style.display = 'block';
+        }
+
+        function fitModel(data, dependentVariable) {
+            // Placeholder for model fitting logic
+            // In a real scenario, you would fit a statistical model here
+            return {
+                residuals: data.map(row => row[dependentVariable] - Math.random()), // Simulated residuals
+                n: data.length
+            };
+        }
+
+        function calculateAICValue(model) {
+            const { residuals, n } = model;
+            const rss = residuals.reduce((sum, res) => sum + res * res, 0);
+            const k = 2; // Number of parameters (this is a placeholder)
+            return n * Math.log(rss / n) + 2 * k; // AIC formula
+        }
+
+        function displayAICResult(results) {
+            const resultDiv = document.getElementById('resultTable');
+            resultDiv.innerHTML = '';
+
+            const table = document.createElement('table');
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            headerRow.appendChild(document.createElement('th')).innerText = 'Variable';
+            headerRow.appendChild(document.createElement('th')).innerText = 'AIC Value';
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            results.forEach(result => {
+                const tr = document.createElement('tr');
+                const tdVariable = document.createElement('td');
+                const tdAIC = document.createElement('td');
+
+                tdVariable.innerText = result.variable;
+                tdAIC.innerText = result.aic.toFixed(2);
+
+                tr.appendChild(tdVariable);
+                tr.appendChild(tdAIC);
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+
+            resultDiv.appendChild(table);
+        }
+
+        function displayAICExplanation(results) {
+            const explanationDiv = document.getElementById('explanation');
+            explanationDiv.innerHTML = '';
+
+            const p = document.createElement('p');
+            p.innerText = `The AIC values for the selected variables are as follows:`;
+            explanationDiv.appendChild(p);
+
+            results.forEach(result => {
+                const p = document.createElement('p');
+                p.innerText = `Variable: ${result.variable}, AIC: ${result.aic.toFixed(2)}`;
+                explanationDiv.appendChild(p);
+            });
+        }
+    </script>
+
+</body>
+</html>

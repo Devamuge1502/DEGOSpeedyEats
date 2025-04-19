@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Preprocessing</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #e0f7fa, #fff9c4);
+            font-family: 'Poppins', sans-serif;
+            text-align: center;
+            padding: 30px;
+            color: #333;
+        }
+        h1 {
+            color: #00796b;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #5d4037;
+            margin-top: 30px;
+        }
+        .container {
+            background: #ffffffcc;
+            padding: 20px;
+            border-radius: 15px;
+            display: inline-block;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            max-width: 900px;
+        }
+        label, select, button, input {
+            margin: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+        }
+        button {
+            background-color: #00796b;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #004d40;
+        }
+        table {
+            width: 90%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background: #fafafa;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        th {
+            background: #80deea;
+        }
+        td {
+            background: #e0f7fa;
+        }
+        .checkbox-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 10px;
+        }
+        .checkbox-item {
+            background: #ffe082;
+            margin: 5px;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        #resultSection {
+            display: none;
+            margin-top: 30px;
+        }
+        #explanation {
+            margin-top: 20px;
+            background: #dcedc8;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Preprocessing</h1>
+
+        <h2>Definition</h2>
+        <p>Data preprocessing is a technique used to transform raw data into a clean and organized format. It prepares the dataset for further analysis by handling missing values, normalizing data, removing duplicates, and more.</p>
+
+        <h2>Uses</h2>
+        <p>Preprocessing improves data quality, reduces errors, speeds up processing time, enhances accuracy of machine learning models, and ensures reliable analysis.</p>
+
+        <h2>Upload Your Dataset</h2>
+        <h2>(Excel Only)</h2>
+        <input type="file" id="fileInput" accept=".xlsx">
+        
+        <h2>Select Preprocessing Function</h2>
+        <select id="preprocessFunction">
+            <option value="fill_missing">Fill Missing Values</option>
+            <option value="normalize">Normalize Data (0-1)</option>
+            <option value="standardize">Standardize Data (Z-Score)</option>
+            <option value="remove_duplicates">Remove Duplicates</option>
+        </select>
+
+        <h2>Select Columns</h2>
+        <div id="columnsCheckboxes" class="checkbox-container">
+            <!-- Checkboxes will appear here dynamically -->
+        </div>
+
+        <button onclick="applyPreprocessing()">Apply Preprocessing</button>
+
+        <div id="resultSection">
+            <h2>Result</h2>
+            <div id="resultTable"></div>
+            <h3>Preprocessing Explanation</h3> <!-- Title for the explanation section -->
+            <div id="explanation"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        let data = [];
+        let headers = [];
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                data = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
+                if (data.length > 0) {
+                    headers = Object.keys(data[0]);
+                    populateCheckboxes(headers);
+                    displayTable(data);
+                }
+            };
+            reader.readAsBinaryString(e.target.files[0]);
+        });
+
+        function populateCheckboxes(columns) {
+            const container = document.getElementById('columnsCheckboxes');
+            container.innerHTML = '';
+            columns.forEach(col => {
+                const div = document.createElement('div');
+                div.className = 'checkbox-item';
+                div.innerHTML = `
+                    <input type="checkbox" id="${col}" name="columns" value="${col}">
+                    <label for="${col}">${col}</label>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function applyPreprocessing() {
+            const selectedFunction = document.getElementById('preprocessFunction').value;
+            const selectedColumns = Array.from(document.querySelectorAll('input[name="columns"]:checked')).map(cb => cb.value);
+
+            let explanationText = '';
+
+            if (selectedFunction === 'fill_missing') {
+                data = data.map(row => {
+                    selectedColumns.forEach(col => {
+                        if (row[col] === null || row[col] === undefined) row[col] = 0;
+                    });
+                    return row;
+                });
+                explanationText = `Missing values in columns (${selectedColumns.join(', ')}) have been filled with 0.`;
+            } 
+            else if (selectedFunction === 'normalize') {
+                selectedColumns.forEach(col => {
+                    const values = data.map(row => row[col]).filter(val => typeof val === 'number');
+                    const min = Math.min(...values);
+                    const max = Math.max(...values);
+                    data = data.map(row => {
+                        if (typeof row[col] === 'number') {
+                            row[col] = (row[col] - min) / (max - min);
+                        }
+                        return row;
+                    });
+                });
+                explanationText = `Selected columns (${selectedColumns.join(', ')}) have been normalized between 0 and 1 based on minimum and maximum values.`;
+            }
+            else if (selectedFunction === 'standardize') {
+                selectedColumns.forEach(col => {
+                    const values = data.map(row => row[col]).filter(val => typeof val === 'number');
+                    const mean = values.reduce((a,b) => a + b, 0) / values.length;
+                    const std = Math.sqrt(values.map(x => Math.pow(x - mean, 2)).reduce((a,b) => a + b, 0) / values.length);
+                    data = data.map(row => {
+                        if (typeof row[col] === 'number') {
+                            row[col] = (row[col] - mean) / std;
+                        }
+                        return row;
+                    });
+                });
+                explanationText = `Selected columns (${selectedColumns.join(', ')}) have been standardized (converted into Z-scores with mean = 0 and standard deviation = 1).`;
+            }
+            else if (selectedFunction === 'remove_duplicates') {
+                const uniqueData = [];
+                const seen = new Set();
+                data.forEach(row => {
+                    const rowStr = JSON.stringify(row);
+                    if (!seen.has(rowStr)) {
+                        seen.add(rowStr);
+                        uniqueData.push(row);
+                    }
+                });
+                data = uniqueData;
+                explanationText = `Duplicate rows have been removed based on all columns.`;
+            }
+
+            displayTable(data);
+            document.getElementById('explanation').innerHTML = explanationText; // Explanation text is displayed
+            document.getElementById('resultSection').style.display = 'block';
+        }
+
+        function displayTable(data) {
+            const resultDiv = document.getElementById('resultTable');
+            resultDiv.innerHTML = '';
+
+            if (data.length === 0) {
+                resultDiv.innerHTML = "<p>No data available.</p>";
+                return;
+            }
+
+            const table = document.createElement('table');
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            Object.keys(data[0]).forEach(col => {
+                const th = document.createElement('th');
+                th.innerText = col;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                Object.values(row).forEach(cell => {
+                    const td = document.createElement('td');
+                    td.innerText = cell;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+
+            resultDiv.appendChild(table);
+        }
+    </script>
+
+</body>
+</html>

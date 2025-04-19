@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Food Order Tracking Map</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(to right, #ff9a9e, #fad0c4);
+            font-family: Arial, sans-serif;
+            height: 100vh; /* Set the body height to the full viewport height */
+            margin: 0; /* Remove default margin */
+        }
+        .container {
+            display: flex;
+            width: 80%; /* Set a width for the container */
+            margin: 20px auto; /* Center the container */
+            justify-content: center; /* Center the content horizontally */
+            align-items: center; /* Center the content vertically */
+            flex-direction: row; /* Arrange elements horizontally */
+        }
+        #mapCanvas {
+            border: 2px solid black;
+            background: #d0e0f0;
+        }
+        /* Display area for order information */
+        .info-section {
+            margin: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+            width: 200px; /* Fixed width for the info sections */
+            display: none; /* Initially hidden */
+            min-width: 200px; /* Minimum width to prevent folding */
+            max-width: 300px; /* Maximum width to keep it manageable */
+            overflow: visible; /* Allow overflow */
+        }
+        .search-bar {
+            margin: 20px;
+            display: flex;
+            flex-direction: column; /* Stack elements vertically */
+            align-items: center; /* Center elements horizontally */
+        }
+        .search-bar input {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 10px; /* Space between input and button */
+        }
+        .search-bar button {
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            background-color: green;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        /* Add margin to restaurant details for spacing */
+        #restaurantDetails p {
+            margin: 5px 0; /* Space between paragraphs */
+        }
+    </style>
+</head>
+<body>
+    <h2>DEGO SPEEDYEATS - ONLINE FOOD ORDERING SYSTEM</h2>
+    <h2>RESTAURANTS NEAR ME</h2>
+
+    <div class="search-bar">
+        <input type="text" id="locationInput" placeholder="Enter your location (1-5)">
+        <button onclick="searchLocation()">Search</button>
+        <input type="range" id="distanceRange" min="10" max="500" value="100" step="10">
+        <label for="distanceRange">Distance: <span id="rangeValue">100</span> m</label>
+    </div>
+
+    <div class="container">
+        <canvas id="mapCanvas" width="800" height="500"></canvas>
+        <div class="info-section" id="orderInfo">
+            <h4>Available Restaurants:</h4>
+            <div id="restaurantDetails"></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const locations = [
+            { name: 'DEGO SPEEDYEATS', x: 100, y: 250, color: 'green' },
+            { name: '1', x: 200, y: 100, color: 'red' },
+            { name: '2', x: 600, y: 150, color: 'red' },
+            { name: '3', x: 450, y: 400, color: 'red' },
+            { name: '4', x: 500, y: 200, color: 'red' },
+            { name: '5', x: 350, y: 350, color: 'red' },
+            { name: 'Restaurant A', x: 300, y: 100, color: 'blue' },
+            { name: 'Restaurant B', x: 400, y: 50, color: 'blue' },
+            { name: 'Restaurant C', x: 600, y: 300, color: 'blue' },
+            { name: 'Restaurant D', x: 200, y: 400, color: 'blue' },
+            { name: 'Restaurant E', x: 500, y: 350, color: 'blue' }
+        ];
+
+        function drawMap(highlighted = []) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#d0e0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            locations.forEach(loc => {
+                ctx.fillStyle = highlighted.includes(loc.name) ? 'orange' : loc.color;
+                ctx.beginPath();
+                ctx.arc(loc.x, loc.y, 10, 0, Math.PI * 2, true);
+                ctx.fill();
+                
+                ctx.fillStyle = 'black';
+                ctx.font = '16px Arial';
+                ctx.fillText(loc.name, loc.x + 12, loc.y - 12);
+            });
+        }
+
+        function searchLocation() {
+            const input = document.getElementById('locationInput').value;
+            const userLocation = locations.find(loc => loc.name === input);
+            const highlighted = [];
+            const distanceRange = parseInt(document.getElementById('distanceRange').value); // Get the distance range
+            const restaurantDetails = document.getElementById('restaurantDetails');
+            restaurantDetails.innerHTML = ''; // Clear previous details
+
+            if (userLocation) {
+                // Highlight restaurants within the specified distance range
+                locations.forEach(loc => {
+                    if (loc.name.startsWith('Restaurant')) {
+                        const distance = Math.sqrt(Math.pow(loc.x - userLocation.x, 2) + Math.pow(loc.y - userLocation.y, 2));
+                        if (distance <= distanceRange) { // Use the user-defined distance range
+                            highlighted.push(loc.name);
+                            const estimatedTime = Math.min(Math.round(distance / 1.5), 40); // Assuming an average speed of 1.5 m/s
+                            restaurantDetails.innerHTML += `<p>${loc.name}</p><p>Distance: ${distance.toFixed(2)} m</p><p>Estimated Time: ${estimatedTime} min</p><br>`; // Added <br> for spacing
+                        }
+                    }
+                });
+                 
+
+                if (highlighted.length > 0) {
+                    document.getElementById('orderInfo').style.display = 'block'; // Show order info
+                } else {
+                    document.getElementById('orderInfo').style.display = 'none'; // Hide order info if no restaurants found
+                }
+            } else {
+                alert('Invalid location. Please enter a number between 1 and 5.');
+                document.getElementById('orderInfo').style.display = 'none'; // Hide order info if invalid input
+            }
+            
+            drawMap(highlighted);
+        }
+
+        document.getElementById('distanceRange').addEventListener('input', function() {
+            document.getElementById('rangeValue').innerText = this.value; // Update displayed value
+        });
+
+        window.onload = function() {
+            drawMap(); // Draw the map on page load
+        };
+    </script>
+</body>
+</html>

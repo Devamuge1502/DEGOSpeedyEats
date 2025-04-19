@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Correlation Analysis</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #e0f7fa, #fff9c4);
+            font-family: 'Poppins', sans-serif;
+            text-align: center;
+            padding: 30px;
+            color: #333;
+        }
+        h1 {
+            color: #00796b;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #5d4037;
+            margin-top: 30px;
+        }
+        .container {
+            background: #ffffffcc;
+            padding: 20px;
+            border-radius: 15px;
+            display: inline-block;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            max-width: 900px;
+        }
+        label, select, button, input {
+            margin: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1em;
+        }
+        button {
+            background-color: #00796b;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #004d40;
+        }
+        table {
+            width: 90%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background: #fafafa;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        th {
+            background: #80deea;
+        }
+        td {
+            background: #e0f7fa;
+        }
+        .checkbox-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 10px;
+        }
+        .checkbox-item {
+            background: #ffe082;
+            margin: 5px;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        #resultSection {
+            display: none;
+            margin-top: 30px;
+        }
+        #explanation {
+            margin-top: 20px;
+            background: #dcedc8;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Correlation Analysis</h1>
+
+        <h2>Definition</h2>
+        <p>Correlation analysis is a statistical method used to evaluate the strength and direction of the linear relationship between two quantitative variables. The correlation coefficient ranges from -1 to 1, where -1 indicates a perfect negative correlation, 1 indicates a perfect positive correlation, and 0 indicates no correlation.</p>
+
+        <h2>Uses</h2>
+        <p>Correlation analysis helps in understanding relationships between variables, identifying trends, and making predictions based on data. It is widely used in fields such as finance, healthcare, and social sciences.</p>
+
+        <h2>Upload Your Dataset</h2>
+        <h2>(Excel Only)</h2>
+        <input type="file" id="fileInput" accept=".xlsx">
+        
+        <h2>Select Variables for Correlation</h2>
+        <div id="columnsCheckboxes" class="checkbox-container">
+            <!-- Checkboxes will appear here dynamically -->
+        </div>
+
+        <button onclick="calculateCorrelation()">Calculate Correlation</button>
+
+        <div id="resultSection">
+            <h2>Correlation Result</h2>
+            <div id="resultTable"></div>
+            <h3>Result Explanation</h3> <!-- Title for the explanation section -->
+            <div id="explanation"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        let data = [];
+        let headers = [];
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                data = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
+                if (data.length > 0) {
+                    headers = Object.keys(data[0]);
+                    populateCheckboxes(headers);
+                }
+            };
+            reader.readAsBinaryString(e.target.files[0]);
+        });
+
+        function populateCheckboxes(columns) {
+            const container = document.getElementById('columnsCheckboxes');
+            container.innerHTML = '';
+            columns.forEach(col => {
+                const div = document.createElement('div');
+                div.className = 'checkbox-item';
+                div.innerHTML = `
+                    <input type="checkbox" id="${col}" name="columns" value="${col}">
+                    <label for="${col}">${col}</label>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function calculateCorrelation() {
+            const selectedColumns = Array.from(document.querySelectorAll('input[name="columns"]:checked')).map(cb => cb.value);
+            if (selectedColumns.length < 2) {
+                alert("Please select at least two columns for correlation analysis.");
+                return;
+            }
+
+            const correlationMatrix = {};
+            selectedColumns.forEach(col1 => {
+                correlationMatrix[col1] = {};
+                selectedColumns.forEach(col2 => {
+                    if (col1 !== col2) {
+                        correlationMatrix[col1][col2] = calculatePearsonCorrelation(data, col1, col2);
+                    }
+                });
+            });
+
+            displayCorrelationTable(correlationMatrix);
+            displayCorrelationExplanation(correlationMatrix);
+            document.getElementById('resultSection').style.display = 'block';
+        }
+
+        function calculatePearsonCorrelation(data, col1, col2) {
+            const values1 = data.map(row => row[col1]).filter(val => typeof val === 'number');
+            const values2 = data.map(row => row[col2]).filter(val => typeof val === 'number');
+
+            if (values1.length === 0 || values2.length === 0 || values1.length !== values2.length) {
+                return null; // Not enough data to calculate correlation
+            }
+
+            const n = values1.length;
+            const sum1 = values1.reduce((a, b) => a + b, 0);
+            const sum2 = values2.reduce((a, b) => a + b, 0);
+            const sum1Sq = values1.reduce((a, b) => a + b * b, 0);
+            const sum2Sq = values2.reduce((a, b) => a + b * b, 0);
+            const pSum = values1.reduce((acc, val, i) => acc + val * values2[i], 0);
+
+            const num = pSum - (sum1 * sum2 / n);
+            const den = Math.sqrt((sum1Sq - (sum1 * sum1 / n)) * (sum2Sq - (sum2 * sum2 / n)));
+
+            return den === 0 ? 0 : num / den; // Return correlation coefficient
+        }
+
+        function displayCorrelationTable(correlationMatrix) {
+            const resultDiv = document.getElementById('resultTable');
+            resultDiv.innerHTML = '';
+
+            const table = document.createElement('table');
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            // Create header row
+            headerRow.appendChild(document.createElement('th')); // Empty cell for the corner
+            Object.keys(correlationMatrix).forEach(col => {
+                const th = document.createElement('th');
+                th.innerText = col;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            Object.keys(correlationMatrix).forEach(col1 => {
+                const tr = document.createElement('tr');
+                const th = document.createElement('th');
+                th.innerText = col1;
+                tr.appendChild(th);
+
+                Object.keys(correlationMatrix[col1]).forEach(col2 => {
+                    const td = document.createElement('td');
+                    td.innerText = correlationMatrix[col1][col2] !== null ? correlationMatrix[col1][col2].toFixed(2) : 'N/A';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+
+            resultDiv.appendChild(table);
+        }
+
+        function displayCorrelationExplanation(correlationMatrix) {
+            const explanationDiv = document.getElementById('explanation');
+            explanationDiv.innerHTML = '';
+
+            Object.keys(correlationMatrix).forEach(col1 => {
+                Object.keys(correlationMatrix[col1]).forEach(col2 => {
+                    const correlationValue = correlationMatrix[col1][col2];
+                    let interpretation = '';
+
+                    if (correlationValue === null) {
+                        interpretation = `Correlation between ${col1} and ${col2} cannot be calculated due to insufficient data.`;
+                    } else if (correlationValue < -0.7) {
+                        interpretation = `Strong negative correlation between ${col1} and ${col2} (r = ${correlationValue.toFixed(2)}).`;
+                    } else if (correlationValue < -0.3) {
+                        interpretation = `Moderate negative correlation between ${col1} and ${col2} (r = ${correlationValue.toFixed(2)}).`;
+                    } else if (correlationValue < 0.3) {
+                        interpretation = `Weak correlation between ${col1} and ${col2} (r = ${correlationValue.toFixed(2)}).`;
+                    } else if (correlationValue < 0.7) {
+                        interpretation = `Moderate positive correlation between ${col1} and ${col2} (r = ${correlationValue.toFixed(2)}).`;
+                    } else {
+                        interpretation = `Strong positive correlation between ${col1} and ${col2} (r = ${correlationValue.toFixed(2)}).`;
+                    }
+
+                    const p = document.createElement('p');
+                    p.innerText = interpretation;
+                    explanationDiv.appendChild(p);
+                });
+            });
+        }
+    </script>
+
+</body>
+</html>
